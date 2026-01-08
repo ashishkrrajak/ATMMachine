@@ -1,0 +1,313 @@
+@startuml ATM Machine Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam linetype ortho
+
+title ATM Machine - Low Level Design
+
+' ==================== ENUMS ====================
+
+enum TransactionType {
+    BALANCE_INQUIRY
+    WITHDRAWAL
+    DEPOSIT
+    TRANSFER
+}
+
+enum TransactionStatus {
+    PENDING
+    SUCCESS
+    FAILED
+    CANCELLED
+}
+
+enum CardType {
+    DEBIT
+    CREDIT
+}
+
+' ==================== BANK ENTITIES ====================
+
+class BankAccount {
+    - accountNumber: String
+    - holderName: String
+    - balance: double
+    - pin: String
+    - isLocked: boolean
+    - failedAttempts: int
+    - {static} MAX_FAILED_ATTEMPTS: int = 3
+    + BankAccount(accountNumber, holderName, balance, pin)
+    + validatePin(inputPin): boolean
+    + withdraw(amount): boolean {synchronized}
+    + deposit(amount): boolean {synchronized}
+    + getAccountNumber(): String
+    + getHolderName(): String
+    + getBalance(): double
+    + isLocked(): boolean
+}
+
+class Card {
+    - cardNumber: String
+    - holderName: String
+    - type: CardType
+    - expiryDate: Date
+    - accountNumber: String
+    + Card(cardNumber, holderName, type, expiryDate, accountNumber)
+    + isExpired(): boolean
+    + getCardNumber(): String
+    + getHolderName(): String
+    + getType(): CardType
+    + getAccountNumber(): String
+    + getMaskedCardNumber(): String
+}
+
+class Transaction {
+    - transactionId: String
+    - type: TransactionType
+    - amount: double
+    - sourceAccount: String
+    - targetAccount: String
+    - timestamp: Date
+    - status: TransactionStatus
+    - description: String
+    + Transaction(id, type, amount, source, target)
+    + setStatus(status): void
+    + setDescription(desc): void
+    + getTransactionId(): String
+    + getType(): TransactionType
+    + getAmount(): double
+    + getStatus(): TransactionStatus
+}
+
+' ==================== ATM COMPONENTS ====================
+
+class CardReader {
+    - currentCard: Card
+    - cardInserted: boolean
+    + insertCard(card): boolean
+    + ejectCard(): Card
+    + getCurrentCard(): Card
+    + isCardInserted(): boolean
+}
+
+class CashDispenser {
+    - cashInventory: Map<Integer, Integer>
+    - {static} DENOMINATIONS: int[] = {100, 50, 20, 10}
+    + CashDispenser()
+    - initializeCash(): void
+    + canDispense(amount): boolean
+    + dispense(amount): Map<Integer, Integer>
+    + addCash(denomination, count): void
+    + getTotalCash(): double
+    + displayInventory(): void
+}
+
+class DepositSlot {
+    - depositedAmount: double
+    + acceptCash(amount): void
+    + acceptCheck(amount): void
+    + getDepositedAmount(): double
+    + reset(): void
+}
+
+class ReceiptPrinter {
+    + printReceipt(transaction, account): void
+}
+
+class BankService {
+    - accounts: Map<String, BankAccount>
+    + BankService()
+    + addAccount(account): void
+    + getAccount(accountNumber): BankAccount
+    + accountExists(accountNumber): boolean
+}
+
+' ==================== STATE PATTERN ====================
+
+interface ATMStateHandler <<interface>> {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, targetAccount): void
+    + cancel(atm): void
+    + getStateName(): String
+}
+
+class IdleStateHandler implements ATMStateHandler {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, target): void
+    + cancel(atm): void
+    + getStateName(): String
+}
+
+class CardInsertedStateHandler implements ATMStateHandler {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, target): void
+    + cancel(atm): void
+    + getStateName(): String
+}
+
+class PinVerifiedStateHandler implements ATMStateHandler {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, target): void
+    + cancel(atm): void
+    + getStateName(): String
+}
+
+class TransactionSelectedStateHandler implements ATMStateHandler {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, target): void
+    + cancel(atm): void
+    + getStateName(): String
+}
+
+class ProcessingStateHandler implements ATMStateHandler {
+    + insertCard(atm, card): void
+    + enterPin(atm, pin): void
+    + selectTransaction(atm, type): void
+    + executeTransaction(atm, amount, target): void
+    + cancel(atm): void
+    + processTransaction(atm, amount, target): void
+    + getStateName(): String
+}
+
+' ==================== ATM (SINGLETON) ====================
+
+class ATM {
+    - {static} instance: ATM
+    - atmId: String
+    - location: String
+    - cardReader: CardReader
+    - cashDispenser: CashDispenser
+    - depositSlot: DepositSlot
+    - receiptPrinter: ReceiptPrinter
+    - bankService: BankService
+    - stateHandler: ATMStateHandler
+    - currentCard: Card
+    - currentAccount: BankAccount
+    - selectedTransactionType: TransactionType
+    - transactionHistory: List<Transaction>
+    __
+    - ATM(atmId, location)
+    + {static} getInstance(atmId, location): ATM
+    + {static} getInstance(): ATM
+    + {static} resetInstance(): void
+    __
+    + insertCard(card): void
+    + enterPin(pin): void
+    + selectTransaction(type): void
+    + executeTransaction(amount, target): void
+    + executeTransaction(amount): void
+    + cancel(): void
+    + ejectCard(): void
+    __
+    ~ setStateHandler(handler): void
+    ~ setCurrentCard(card): void
+    ~ setCurrentAccount(account): void
+    ~ setSelectedTransactionType(type): void
+    ~ addTransaction(transaction): void
+    __
+    + getAtmId(): String
+    + getCardReader(): CardReader
+    + getCashDispenser(): CashDispenser
+    + getDepositSlot(): DepositSlot
+    + getBankService(): BankService
+    + getCurrentCard(): Card
+    + getCurrentAccount(): BankAccount
+    + displayStatus(): void
+}
+
+' ==================== RELATIONSHIPS ====================
+
+' Enum relationships
+Card "1" -- "1" CardType
+Transaction "1" -- "1" TransactionType
+Transaction "1" -- "1" TransactionStatus
+
+' ATM Component composition
+ATM "1" *-- "1" CardReader : has
+ATM "1" *-- "1" CashDispenser : has
+ATM "1" *-- "1" DepositSlot : has
+ATM "1" *-- "1" ReceiptPrinter : has
+ATM "1" *-- "1" BankService : uses
+
+' ATM State
+ATM "1" --> "1" ATMStateHandler : currentState
+ATM "1" o-- "*" Transaction : stores
+
+' ATM runtime associations
+ATM "1" o-- "0..1" Card : currentCard
+ATM "1" o-- "0..1" BankAccount : currentAccount
+
+' State implementations
+IdleStateHandler ..|> ATMStateHandler
+CardInsertedStateHandler ..|> ATMStateHandler
+PinVerifiedStateHandler ..|> ATMStateHandler
+TransactionSelectedStateHandler ..|> ATMStateHandler
+ProcessingStateHandler ..|> ATMStateHandler
+
+' Bank relationships
+BankService "1" *-- "*" BankAccount : manages
+Card "1" --> "1" BankAccount : linked to
+
+' Card reader
+CardReader "1" o-- "0..1" Card : holds
+
+' ==================== NOTES ====================
+
+note right of ATM
+    <b>Singleton Pattern</b>
+    Only one ATM instance exists.
+    Thread-safe getInstance().
+end note
+
+note right of ATMStateHandler
+    <b>State Pattern</b>
+    ATM behavior varies by state:
+    - IDLE: Waiting for card
+    - CARD_INSERTED: Waiting for PIN
+    - PIN_VERIFIED: Select transaction
+    - TRANSACTION_SELECTED: Enter amount
+    - PROCESSING: Execute transaction
+end note
+
+note bottom of CashDispenser
+    <b>Cash Management</b>
+    Greedy algorithm for
+    dispensing cash using
+    available denominations
+end note
+
+note left of BankAccount
+    <b>Thread-Safe Operations</b>
+    withdraw() and deposit()
+    are synchronized to prevent
+    race conditions
+end note
+
+' ==================== STATE TRANSITIONS ====================
+
+note as StateFlow
+    <b>State Flow:</b>
+
+    IDLE --[insertCard]--> CARD_INSERTED
+    CARD_INSERTED --[validPin]--> PIN_VERIFIED
+    CARD_INSERTED --[invalidPin 3x]--> IDLE (locked)
+    CARD_INSERTED --[cancel]--> IDLE
+    PIN_VERIFIED --[selectTxn]--> TRANSACTION_SELECTED
+    PIN_VERIFIED --[cancel]--> IDLE
+    TRANSACTION_SELECTED --[execute]--> PROCESSING
+    TRANSACTION_SELECTED --[cancel]--> PIN_VERIFIED
+    PROCESSING --[complete]--> PIN_VERIFIED
+end note
+
+@enduml
