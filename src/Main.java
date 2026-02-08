@@ -56,6 +56,7 @@ public class Main {
         atm.enterPin("1234");
         atm.selectTransaction(TransactionType.WITHDRAWAL);
         atm.executeTransaction(280);
+        atm.cancel();
         atm.ejectCard();
 
         atm.displayStatus();
@@ -66,6 +67,7 @@ public class Main {
         atm.enterPin("5678");
         atm.selectTransaction(TransactionType.DEPOSIT);
         atm.executeTransaction(500);
+        atm.cancel();
         atm.ejectCard();
 
         atm.displayStatus();
@@ -76,6 +78,7 @@ public class Main {
         atm.enterPin("1234");
         atm.selectTransaction(TransactionType.TRANSFER);
         atm.executeTransaction(200, "ACC002"); // Transfer to Jane's account
+        atm.cancel();
         atm.ejectCard();
 
         // Demo 5: Invalid PIN (Account Lockout)
@@ -92,6 +95,7 @@ public class Main {
         atm.enterPin("1234");
         atm.selectTransaction(TransactionType.WITHDRAWAL);
         atm.executeTransaction(50000); // More than balance
+        atm.cancel();
         atm.ejectCard();
 
         // Demo 7: Transaction Cancellation
